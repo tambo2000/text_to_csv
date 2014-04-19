@@ -1,18 +1,28 @@
 class Transactions
 
-  COLUMN_TITLES = ['Date', 'Transaction #', 'Store #', 'Reg.:', 
-                   'Cashier:', 'Item', 'Item Description', 'Price', 
-                   'Tax Type', 'Qty', 'Original Transaction', 
-                   'Reason', 'Tax', 'Subtotal', 'Taxable', 'Tax', 'Total']
-
-  SIMPLE_NUMERICAL_COLUMNS_TO_POPULATE = ['Cashier:', 'Orig.   Trans:']
-
   def initialize(file)
     @original_file = File.open(file, 'r')
     @transactions = {}
   end
 
+  # RegEx
+  TRANSACTION_HEADER = /Transaction\s+Id:\s+(\d+)\s+(\d+)\s+(\d+)/
+  ITEM = /ITEM:\s+(\d+)\s+(\d+)/
+  DATE = /^Date:\s+(\d+)-(\d+)-(\d+)/
+  CASHIER = /Cashier:\s+(\d+)/
+  ORIG_TRANS = /Orig.\s+Trans:\s+(\d+)/
+
+  ATTRIBUTES = {'Date' => {:regex => DATE, :captures_order => [1, 2, 0], :join_char => '/'},
+                'Transaction #' => {:regex => TRANSACTION_HEADER, :captures_order => [2], :join_char => ''},
+                'Store #' => {:regex => TRANSACTION_HEADER, :captures_order => [0], :join_char => ''},
+                'Reg.:' => {:regex => TRANSACTION_HEADER, :captures_order => [1], :join_char => ''},
+                'Cashier:' => {:regex => CASHIER, :captures_order => [0], :join_char => ''},
+                'Item' => {:regex => ITEM, :captures_order => [0, 1], :join_char => ' '},
+                'Original Transaction:' => {:regex => ORIG_TRANS, :captures_order => [0], :join_char => ''}
+               }
+
   def create_csv
+    
     @new_file = File.new("#{File.basename(ARGV[0], '.txt')}.csv" , 'w')
     @new_file.puts(COLUMN_TITLES.join(','))
     @new_file.close
@@ -23,30 +33,31 @@ class Transactions
 
     @original_file.each do |line|
       next if line.strip.empty?
-      get_current_transaction_and_other_values(line)
-      get_simple_numerical_columns(line)
+      @line = line
+      get_current_transaction
+
+      ATTRIBUTES.keys.each do |attribute|
+        assign_hash(attribute)
+      end
     end
 
+    @transactions.delete_if { |key, value| value['Item'].nil? }
     p @transactions
   end
 
   private
 
-  def get_current_transaction_and_other_values(line)
-    new_trans_match_object = line.match(/Transaction\s+Id:\s+(\d+)\s+(\d+)\s+(\d+)/)
+  def get_current_transaction
+    new_trans_match_object = @line.match(TRANSACTION_HEADER)
     if new_trans_match_object
       @current_transaction = new_trans_match_object.captures[2]
       @transactions[@current_transaction] = {}
-      @transactions[@current_transaction]['Store #'] = new_trans_match_object.captures[0]
-      @transactions[@current_transaction]['Reg.:'] = new_trans_match_object.captures[1]
     end
   end
 
-  def get_simple_numerical_columns(line)
-    SIMPLE_NUMERICAL_COLUMNS_TO_POPULATE.each do |column|
-      item_match_object = line.match(/#{column}\s+(\d+)/)
-      @transactions[@current_transaction][column] = item_match_object.captures[0] if item_match_object
-    end
+  def assign_hash(attribute)
+    match_object = @line.match(ATTRIBUTES[attribute][:regex])
+    @transactions[@current_transaction][attribute] = ATTRIBUTES[attribute][:captures_order].map { |index| match_object.captures[index] }.join(ATTRIBUTES[attribute][:join_char]) if match_object
   end
 
 end
