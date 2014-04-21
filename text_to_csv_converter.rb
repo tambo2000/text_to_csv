@@ -1,27 +1,42 @@
 class Transactions
 
+  TRANSACTION_HEADER = /Transaction\s+Id:\s+(\d+)\s+(\d+)\s+(\d+)/
+  ITEM = /ITEM\s*:\s*(\d+)\s+(\d+)\s+(-?\d+.\d\d)\s+(\w?)/
+  DATE = /Date:\s+(\d+)-(\d+)-(\d+)/
+  CASHIER = /Cashier:\s+(\d+)/
+  PRICE = /Qty:\s+(\(?\d+\)?)\s+@\s+(-?\d+.\d\d)/
+  ORIG_TRANS = /Orig.\s+Trans:\s+(\d+)/
+  REASON = /(Item)\s+(Returned)/
+  TAX = /Tax:\s+(\(?-?\d+.\d\d\)?)/
+  SUBTOTAL = /Subtotal\s+(\(?-?\d+.\d\d\)?)/
+  TAXABLE = /T1Taxable\s+Amount\s+(\(?-?\d+.\d\d\)?)/
+  TOTAL_TAX = /Total\s+Tax\s+(\(?-?\d+.\d\d\)?)/
+  TOTAL = /Total\s+(\(?-?\d+.\d\d\)?)/
+
+  ATTRIBUTES = {'Date' => {:regex => DATE, :captures_order => [1, 2, 0], :join_char => '/'},
+                'Transaction #' => {:regex => TRANSACTION_HEADER, :captures_order => [2]},
+                'Store #' => {:regex => TRANSACTION_HEADER},
+                'Reg.:' => {:regex => TRANSACTION_HEADER, :captures_order => [1]},
+                'Cashier:' => {:regex => CASHIER},
+                'Item' => {:regex => ITEM, :captures_order => [0, 1], :join_char => ' '},
+                'Item Description' => {:regex => //},
+                'Price' => {:regex => ITEM, :captures_order => [2]},
+                'Tax Type' => {:regex => ITEM, :captures_order => [3]},
+                'Quantity' => {:regex => PRICE},
+                'Original Transaction:' => {:regex => ORIG_TRANS},
+                'Reason' => {:regex => REASON, :captures_order => [0, 1], :join_char => ' '},
+                'Tax' => {:regex => TAX},
+                'Subtotal' => {:regex => SUBTOTAL},
+                'Taxable' => {:regex => TAXABLE},
+                'Total Tax' => {:regex => TOTAL_TAX},
+                'Total' => {:regex => TOTAL}
+               }
+
   def initialize(file)
     @original_file = File.open(file, 'r')
     @transactions = {}
     @line = ''
   end
-
-  # RegEx
-  TRANSACTION_HEADER = /Transaction\s+Id:\s+(\d+)\s+(\d+)\s+(\d+)/
-  ITEM = /^ITEM\s*:\s*(\d+)\s+(\d+)/
-  DATE = /^Date:\s+(\d+)-(\d+)-(\d+)/
-  CASHIER = /Cashier:\s+(\d+)/
-  ORIG_TRANS = /Orig.\s+Trans:\s+(\d+)/
-
-  ATTRIBUTES = {'Date' => {:regex => DATE, :captures_order => [1, 2, 0], :join_char => '/'},
-                'Transaction #' => {:regex => TRANSACTION_HEADER, :captures_order => [2], :join_char => ''},
-                'Store #' => {:regex => TRANSACTION_HEADER, :captures_order => [0], :join_char => ''},
-                'Reg.:' => {:regex => TRANSACTION_HEADER, :captures_order => [1], :join_char => ''},
-                'Cashier:' => {:regex => CASHIER, :captures_order => [0], :join_char => ''},
-                'Item' => {:regex => ITEM, :captures_order => [0, 1], :join_char => ' '},
-                'Item Description' => {:regex => //, :captures_order => [], :join_char => ''}, 
-                'Original Transaction:' => {:regex => ORIG_TRANS, :captures_order => [0], :join_char => ''}
-               }
 
   def create_csv
     @new_file = File.new("#{File.basename(ARGV[0], '.txt')}.csv" , 'w')
@@ -46,7 +61,6 @@ class Transactions
     end
 
     @transactions.delete_if { |key, value| value['Item'].empty? }
-    p @transactions
   end
 
   private
@@ -57,18 +71,20 @@ class Transactions
       @current_transaction = new_trans_match_object.captures[2]
       @transactions[@current_transaction] = {}
       @transactions[@current_transaction]['Item'] = []
-      @transactions[@current_transaction]['Item Description'] = []      
+      @transactions[@current_transaction]['Item Description'] = [] 
+      @transactions[@current_transaction]['Price'] = []   
+      @transactions[@current_transaction]['Tax'] = []                 
     end
   end
 
   def assign_attribute(attribute)
     match_object = @line.match(ATTRIBUTES[attribute][:regex])
     if match_object
-      value = ATTRIBUTES[attribute][:captures_order].map { |index| match_object.captures[index] }.join(ATTRIBUTES[attribute][:join_char])
-      if attribute == 'Item'
-        @transactions[@current_transaction][attribute] << value
-      elsif attribute == 'Item Description'
+      value = (ATTRIBUTES[attribute][:captures_order] || [0]).map { |index| match_object.captures[index] }.join(ATTRIBUTES[attribute][:join_char] || '')
+      if  attribute == 'Item Description'
         # do nothing
+      elsif @transactions[@current_transaction][attribute].class == Array
+        @transactions[@current_transaction][attribute] << value
       else
         @transactions[@current_transaction][attribute] = value
       end
