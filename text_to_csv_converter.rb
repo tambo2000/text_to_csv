@@ -13,23 +13,41 @@ class Transactions
   TOTAL_TAX = /Total\s+Tax\s+(\(?-?\d+.\d\d\)?)/
   TOTAL = /Total\s+(\(?-?\d+.\d\d\)?)/
 
-  ATTRIBUTES = {'Date' => {:regex => DATE, :captures_order => [1, 2, 0], :join_char => '/'},
-                'Transaction #' => {:regex => TRANSACTION_HEADER, :captures_order => [2]},
-                'Store #' => {:regex => TRANSACTION_HEADER},
-                'Reg.:' => {:regex => TRANSACTION_HEADER, :captures_order => [1]},
-                'Cashier:' => {:regex => CASHIER},
-                'Item' => {:regex => ITEM, :captures_order => [0, 1], :join_char => ' '},
-                'Item Description' => {:regex => //},
-                'Price' => {:regex => ITEM, :captures_order => [2]},
-                'Tax Type' => {:regex => ITEM, :captures_order => [3]},
-                'Quantity' => {:regex => PRICE},
-                'Original Transaction:' => {:regex => ORIG_TRANS},
-                'Reason' => {:regex => REASON, :captures_order => [0, 1], :join_char => ' '},
-                'Tax' => {:regex => TAX},
-                'Subtotal' => {:regex => SUBTOTAL},
-                'Taxable' => {:regex => TAXABLE},
-                'Total Tax' => {:regex => TOTAL_TAX},
-                'Total' => {:regex => TOTAL}
+  DATE_STR = 'Date'
+  TRANSACTION_STR = 'Transaction #'
+  STORE_STR = 'Store #'
+  REG_STR = 'Reg.:'
+  CASHIER_STR = 'Cashier:'
+  ITEM_STR = 'Item'
+  ITEM_DESCRIPTION_STR = 'Item Description'
+  PRICE_STR = 'Price'
+  TAX_TYPE_STR = 'Tax Type'
+  QUANTITY_STR = 'Quantity'
+  ORIG_TRANS_STR = 'Original Transaction'
+  REASON_STR = 'Reason'
+  TAX_STR = 'Tax'
+  SUBTOTAL_STR = 'Subtotal'
+  TAXABLE_STR = 'Taxable'
+  TOTAL_TAX_STR = 'Total Tax'
+  TOTAL_STR = 'Total'
+
+  ATTRIBUTES = {DATE_STR => {:regex => DATE, :captures_order => [1, 2, 0], :join_char => '/'},
+                TRANSACTION_STR => {:regex => TRANSACTION_HEADER, :captures_order => [2]},
+                STORE_STR => {:regex => TRANSACTION_HEADER},
+                REG_STR => {:regex => TRANSACTION_HEADER, :captures_order => [1]},
+                CASHIER_STR => {:regex => CASHIER},
+                ITEM_STR => {:regex => ITEM, :captures_order => [0, 1], :join_char => ' '},
+                ITEM_DESCRIPTION_STR => {:regex => //},
+                PRICE_STR => {:regex => ITEM, :captures_order => [2]},
+                TAX_TYPE_STR => {:regex => ITEM, :captures_order => [3]},
+                QUANTITY_STR => {:regex => PRICE},
+                ORIG_TRANS_STR => {:regex => ORIG_TRANS},
+                REASON_STR => {:regex => REASON, :captures_order => [0, 1], :join_char => ' '},
+                TAX_STR => {:regex => TAX},
+                SUBTOTAL_STR => {:regex => SUBTOTAL},
+                TAXABLE_STR => {:regex => TAXABLE},
+                TOTAL_TAX_STR => {:regex => TOTAL_TAX},
+                TOTAL_STR => {:regex => TOTAL}
                }
 
   def initialize(file)
@@ -42,7 +60,7 @@ class Transactions
     @new_file = File.new("#{File.basename(@original_file, '.txt')}.csv" , 'w')
     @new_file.puts(ATTRIBUTES.keys.join(','))
     @transactions.each do |key, transaction| 
-      transaction['Item'].each_with_index do |item, index|
+      transaction[ITEM_STR].each_with_index do |item, index|
         @new_file.puts( ATTRIBUTES.keys.map do |attribute| 
           transaction[attribute].class == Array ? transaction[attribute][index] : transaction[attribute]
         end.join(','))
@@ -60,7 +78,7 @@ class Transactions
       ATTRIBUTES.keys.each { |attribute| assign_attribute(attribute) } if @current_transaction
     end
 
-    @transactions.delete_if { |key, value| value['Item'].empty? }
+    @transactions.delete_if { |key, value| value[ITEM_STR].empty? }
   end
 
   private
@@ -70,7 +88,7 @@ class Transactions
     if new_trans_match_object
       @current_transaction = new_trans_match_object.captures[2]
       @transactions[@current_transaction] = {}
-      ['Item', 'Item Description', 'Price', 'Tax'].each { |attribute| @transactions[@current_transaction][attribute] = [] }
+      [ITEM_STR, ITEM_DESCRIPTION_STR, PRICE_STR, TAX_STR].each { |attribute| @transactions[@current_transaction][attribute] = [] }
     end
   end
 
@@ -78,7 +96,7 @@ class Transactions
     match_object = @line.match(ATTRIBUTES[attribute][:regex])
     if match_object
       value = (ATTRIBUTES[attribute][:captures_order] || [0]).map { |index| match_object.captures[index] }.join(ATTRIBUTES[attribute][:join_char] || '')
-      if  attribute == 'Item Description'
+      if  attribute == ITEM_DESCRIPTION_STR
         # do nothing
       elsif @transactions[@current_transaction][attribute].class == Array
         @transactions[@current_transaction][attribute] << value
@@ -90,7 +108,7 @@ class Transactions
 
   def get_item_description(line)
     if @line.match(ITEM)
-      @transactions[@current_transaction]['Item Description'] << line.strip
+      @transactions[@current_transaction][ITEM_DESCRIPTION_STR] << line.strip
     end
   end
 
