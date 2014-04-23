@@ -39,7 +39,7 @@ class Transactions
   end
 
   def create_csv
-    @new_file = File.new("#{File.basename(ARGV[0], '.txt')}.csv" , 'w')
+    @new_file = File.new("#{File.basename(@original_file, '.txt')}.csv" , 'w')
     @new_file.puts(ATTRIBUTES.keys.join(','))
     @transactions.each do |key, transaction| 
       transaction['Item'].each_with_index do |item, index|
@@ -70,10 +70,7 @@ class Transactions
     if new_trans_match_object
       @current_transaction = new_trans_match_object.captures[2]
       @transactions[@current_transaction] = {}
-      @transactions[@current_transaction]['Item'] = []
-      @transactions[@current_transaction]['Item Description'] = [] 
-      @transactions[@current_transaction]['Price'] = []   
-      @transactions[@current_transaction]['Tax'] = []                 
+      ['Item', 'Item Description', 'Price', 'Tax'].each { |attribute| @transactions[@current_transaction][attribute] = [] }
     end
   end
 
